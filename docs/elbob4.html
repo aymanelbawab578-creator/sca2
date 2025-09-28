@@ -1,1 +1,867 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>برنامج متابعة السيارات — elbob4</title>
+<style>
+  :root{
+    --bg:#f6f8fb;
+    --card:#fff;
+    --primary:#0d6efd;
+    --muted:#6c757d;
+    --accent:#1976d2;
+  }
+  *{box-sizing:border-box}
+  body{font-family:Tahoma,Arial,Helvetica,sans-serif;margin:0;padding:0;direction:rtl;background:var(--bg)}
+  .wrap{max-width:980px;margin:0 auto;padding:12px}
+  header{background:#0b2545;color:#fff;padding:12px;border-radius:8px;text-align:center;font-size:18px;position:relative}
+  header img{position:absolute;right:12px;top:6px;height:44px}
+  .card{background:var(--card);padding:14px;border-radius:10px;margin-top:12px;box-shadow:0 6px 20px rgba(11,37,69,0.06)}
+  .hidden{display:none}
+  input,select,button,textarea{font-size:15px;padding:9px;border-radius:8px;border:1px solid #ddd;box-sizing:border-box}
+  button{background:var(--primary);color:#fff;border:0;cursor:pointer}
+  button.secondary{background:var(--muted)}
+  .topbar{display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .menuBtn{background:var(--accent);color:#fff;padding:8px 14px;border-radius:6px;border:none;cursor:pointer;font-size:14px}
+  .menuBtn:active{transform:translateY(1px)}
+  .dropdown{position:relative;display:inline-block}
+  .dropdown-menu{position:absolute;right:0;top:42px;background:#fff;border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.08);z-index:50;display:none;min-width:220px}
+  .dropdown.open .dropdown-menu{display:block}
+  .menu-item{display:flex;gap:8px;align-items:center;padding:10px 12px;border:0;background:none;width:100%;text-align:right;cursor:pointer}
+  .menu-item:hover{background:#f2f6ff}
+  .icon-sm{font-size:18px;width:28px;text-align:center}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .cars-list{max-height:220px;overflow:auto;border:1px dashed #eee;padding:6px;border-radius:8px;margin-top:8px;background:#fff}
+  .cars-list .row{display:flex;justify-content:space-between;align-items:center;padding:6px;border-bottom:1px solid #f5f5f5}
+  .result-box{background:#e9f7ef;border:1px solid #c7eed5;padding:10px;border-radius:8px;margin-top:8px}
+  footer{margin-top:14px;text-align:center;color:var(--muted);font-size:13px;padding-bottom:30px}
 
+  /* login screen look */
+  #loginScreen{max-width:420px;margin:40px auto;background:#f2f2f2}
+  #loginScreen img{display:block;margin:6px auto 12px;max-width:140px}
+  #loginScreen h3{margin:0 0 6px 0}
+
+  /* main app background (bus) */
+  #mainApp{min-height:100vh;padding:18px;background-position:center;background-repeat:no-repeat;background-size:cover}
+  /* keep cards slightly opaque so text readable over bg */
+  #mainApp .card{background:rgba(255,255,255,0.95)}
+
+  @media(max-width:769px)@ box{
+  ;background:#2196f3
+      ;font-size:18px
+    
+   
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <!-- login screen -->
+  <!-- شاشة تسجيل الدخول -->
+<div id="loginScreen" class="card">
+  <div style="text-align:center;margin-bottom:12px">
+    <img src="suez-logo.png" alt="شعار الهيئة" style="width:90px;height:auto;margin-bottom:8px">
+    <h3 style="margin:6px 0">تسجيل الدخول</h3>
+  </div>
+
+  <div class="form-group">
+    <label>اسم المستخدم</label>
+    <input id="usernameInput" type="text" placeholder="اسم المستخدم">
+  </div>
+
+  <div class="form-group" style="position:relative">
+    <label>كلمة المرور</label>
+    <input id="passwordInput" type="password" placeholder="كلمة المرور" style="padding-right:35px">
+    <span onclick="togglePassword()" 
+          style="position:absolute;top:34px;right:10px;cursor:pointer;font-size:18px;color:#555">👁️</span>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:10px">
+    <button onclick="attemptLogin()">دخول</button>
+  </div>
+
+  <div id="loginMsg" style="color:#b02a37;margin-top:8px;display:none"></div>
+</div>
+
+<style>
+  #loginScreen .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  #loginScreen input {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 15px;
+  }
+</style>
+
+<script>
+function togglePassword(){
+  const pass = document.getElementById("passwordInput");
+  pass.type = pass.type === "password" ? "text" : "password";
+}
+</script>
+  <!-- main app -->
+  <div id="mainApp" class="hidden">
+
+    <header>🚘 برنامج متابعة السيارات - هيئة قناة السويس
+      <img src="suez-logo.png" alt="شعار">
+    </header>
+
+    <!-- topbar with dropdown -->
+    <div class="card topbar">
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="menuBtn" onclick="logout()">🚪 خروج</button>
+        <div style="color:var(--muted)">مستخدم: <b id="currentUser"></b></div>
+      </div>
+
+    <!-- القائمة المنسدلة -->
+<div style="display:flex;gap:8px;align-items:center">
+  <div class="dropdown" id="mainDropdown">
+    <button class="menuBtn" onclick="toggleDropdown()">☰ القائمة</button>
+    <div class="dropdown-menu" role="menu">
+        
+      <button class="menu-item" data-target="addCarScreen">
+        <span class="icon-sm">➕</span>
+        <span>إضافة سيارة</span>
+      </button>
+
+      <button class="menu-item" data-target="deleteCarScreen">
+        <span class="icon-sm">🗑️</span>
+        <span>حذف / تعديل</span>
+      </button>
+
+      <button class="menu-item" data-target="passwordScreen">
+        <span class="icon-sm">🔑</span>
+        <span>تغيير كلمة المرور</span>
+      </button>
+
+      <button class="menu-item" data-target="usernameScreen">
+        <span class="icon-sm">👤</span>
+        <span>تغيير اسم المستخدم</span>
+      </button>
+
+      <button class="menu-item" data-target="recordSearchScreen">
+        <span class="icon-sm">📖</span>
+        <span>بحث بالسجل</span>
+      </button>
+
+      <button class="menu-item" data-target="importScreen">
+        <span class="icon-sm">⬇️</span>
+        <span>استيراد (CSV)</span>
+      </button>
+
+      <button class="menu-item" onclick="exportAll()">
+        <span class="icon-sm">⬆️</span>
+        <span>تصدير (كل السيارات)</span>
+      </button>
+
+    </div>
+  </div>
+</div>
+
+<!-- الاستايل -->
+<style>
+.menuBtn {
+  background: #1976d2;
+  color: #fff;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+}
+.menuBtn:hover {
+  background: #1565c0;
+}
+.dropdown {
+  position: relative;
+}
+.dropdown-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  min-width: 220px;
+  z-index: 100;
+}
+.dropdown.open .dropdown-menu {
+  display: block;
+}
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: right;
+  cursor: pointer;
+  font-size: 15px;
+  color: #222;
+}
+.menu-item:hover {
+  background: #f2f6ff;
+}
+.icon-sm {
+  font-size: 18px;
+  width: 24px;
+  text-align: center;
+  flex-shrink: 0;
+  color: #1976d2;
+}
+</style>
+
+<!-- الجافا -->
+<script>
+function toggleDropdown(){
+  document.getElementById('mainDropdown').classList.toggle('open');
+}
+</script>
+    <!-- SEARCH SCREEN -->
+    <div id="searchScreen" class="card">
+      <h3>🔍 شاشة البحث</h3>
+
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <input id="searchNumber" type="text" placeholder="اكتب رقم السيارة (أو جزء منه)">
+        <button onclick="searchCar()">بحث</button>
+      <!-- زرار المسح في شاشة البحث -->
+<button class="secondary" onclick="clearSearch()">مسح</button>
+
+<script>
+function clearSearch() {
+  // يمسح مربع البحث
+  document.getElementById("searchNumber").value = "";
+
+  // يرجع الرسالة الافتراضية
+  document.getElementById("carInfo").innerHTML = "لم يتم اختيار سيارة بعد";
+
+  // يفضي العدادات والتواريخ
+  document.getElementById("lastOdometer").value = "";
+  document.getElementById("lastDate").value = "";
+  document.getElementById("currentOdometer").value = "";
+  document.getElementById("currentDate").value = "";
+  document.getElementById("fuelAmount").value = "";
+  document.getElementById("distanceField").value = "";
+  document.getElementById("percentageField").value = "";
+
+  // يرجع العربية المختارة لـ null
+  selectedCar = null;
+}
+</script>
+      </div>
+
+      <div id="carInfo" class="card" style="margin-top:10px;padding:10px;background:#fbfbff;border:1px solid #f0f4ff">
+        لم يتم اختيار سيارة بعد
+      </div>
+
+      <div class="grid-2" style="margin-top:8px">
+        <div>
+          <label>آخر عداد</label>
+          <input id="lastOdometer" type="text" readonly placeholder="—">
+        </div>
+        <div>
+          <label>تاريخ آخر عداد</label>
+          <input id="lastDate" type="text" readonly placeholder="—">
+        </div>
+      </div>
+
+      <div class="grid-2" style="margin-top:8px">
+        <div>
+          <label>العداد الجديد</label>
+          <input id="currentOdometer" type="number" placeholder="اكتب العداد الجديد">
+        </div>
+        <div>
+          <label>التاريخ الجديد (يمكن الكتابة أو اختيار التاريخ)</label>
+          <input id="currentDate" type="date" placeholder="YYYY-MM-DD">
+        </div>
+      </div>
+
+      <div style="margin-top:8px">
+        <label>كمية الوقود (لتر)</label>
+        <input id="fuelAmount" type="number" placeholder="اكتب كمية الوقود">
+      </div>
+
+      <div class="grid-2" style="margin-top:10px">
+        <div>
+          <label>المسافة المقطوعة</label>
+          <input id="distanceField" type="text" readonly placeholder="">
+        </div>
+        <div>
+          <label>النسبة (كمية ÷ مسافة × 100)</label>
+          <input id="percentageField" type="text" readonly placeholder="">
+        </div>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="saveTrip()">حفظ</button>
+        <button class="secondary" onclick="exportCurrentIfExists()">تصدير سيارة</button>
+        <button class="secondary" onclick="exportAll()">تصدير كل السيارات</button>
+      </div>
+
+      <div style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="color:var(--muted)">قائمة السيارات</div>
+          <div style="color:var(--muted);font-size:13px">اضغط اختيار لملء البحث</div>
+        </div>
+        <div id="carsList" class="cars-list"></div>
+      </div>
+
+    </div>
+
+    <!-- ADD CAR SCREEN -->
+  <!-- صفحة إضافة سيارة -->
+<div id="addCarScreen" class="card hidden">
+  <h3>➕ إضافة سيارة</h3>
+
+  <div class="form-group">
+    <label>رقم السيارة (مفتاح)</label>
+    <input id="add_number" type="text" placeholder="مثال: س ي 1234">
+  </div>
+
+  <div class="form-group">
+    <label>السجل</label>
+    <input id="add_record" type="text">
+  </div>
+
+  <div class="form-group">
+    <label>الكود</label>
+    <input id="add_code" type="text">
+  </div>
+
+  <div class="form-group">
+    <label>الماركة</label>
+    <input id="add_brand" type="text">
+  </div>
+
+  <div class="form-group">
+    <label>النوع</label>
+    <input id="add_model" type="text">
+  </div>
+
+  <div class="form-group">
+    <label>نوع الوقود</label>
+    <select id="add_fuelType">
+      <option value="">— اختر —</option>
+      <option>بنزين</option>
+      <option>سولار</option>
+      <option>غاز</option>
+    </select>
+  </div>
+
+  <div class="form-group">
+    <label>العداد الحالي</label>
+    <input id="add_odometer" type="number">
+  </div>
+
+  <div class="form-group">
+    <label>تاريخ آخر عداد</label>
+    <input id="add_odometer_date" type="text" placeholder="YYYY-MM-DD"
+           onfocus="this.type='date'"
+           onblur="if(!this.value)this.type='text'">
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:12px">
+    <button onclick="addCar()">💾 حفظ</button>
+    <button class="secondary" onclick="clearAddCar()">🧹 مسح</button>
+     <button class="secondary" onclick="showScreen('searchScreen')">⬅️ رجوع</button>
+  </div>
+</div>
+
+<style>
+  #addCarScreen .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+  }
+  #addCarScreen input,
+  #addCarScreen select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 15px;
+  }
+</style>
+
+<script>
+function clearAddCar(){
+  document.getElementById("add_number").value = "";
+  document.getElementById("add_record").value = "";
+  document.getElementById("add_code").value = "";
+  document.getElementById("add_brand").value = "";
+  document.getElementById("add_model").value = "";
+  document.getElementById("add_fuelType").value = "";
+  document.getElementById("add_odometer").value = "";
+  document.getElementById("add_odometer_date").value = "";
+}
+</script>
+    <!-- DELETE / EDIT SCREEN -->
+    <div id="deleteCarScreen" class="card hidden">
+      <h3>🗑️ حذف / تعديل سيارة</h3>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="deleteSearchNumber" type="text" placeholder="اكتب رقم العربية أو جزء منه">
+        <button onclick="searchCarToDelete()">بحث</button>
+        <button class="secondary" onclick="clearDeleteSearch()">مسح</button>
+        <button class="secondary" onclick="showScreen('searchScreen')">⬅️ رجوع</button>
+      </div>
+      <div id="deleteCarResult" style="margin-top:10px;padding:10px;background:#fbfbff;border:1px solid #f0f4ff">
+        لم يتم اختيار سيارة بعد
+      </div>
+    </div>
+
+    <!-- USERNAME SCREEN -->
+    <div id="usernameScreen" class="card hidden">
+      <h3>👤 تغيير اسم المستخدم</h3>
+      <label>اسم المستخدم الجديد</label>
+      <input id="newUsername" type="text">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="changeUsername()">حفظ</button>
+        <button class="secondary" onclick="showScreen('searchScreen')">⬅️ رجوع</button>
+      </div>
+      <div id="userMsg" style="margin-top:8px;color:var(--muted)"></div>
+    </div>
+
+    <!-- PASSWORD SCREEN -->
+    <div id="passwordScreen" class="card hidden">
+      <h3>🔑 تغيير كلمة المرور</h3>
+      <label>كلمة المرور القديمة</label>
+      <input id="oldPass" type="password">
+      <label>كلمة المرور الجديدة</label>
+      <input id="newPass1" type="password">
+      <label>تأكيد كلمة المرور الجديدة</label>
+      <input id="newPass2" type="password">
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="changePassword()">حفظ</button>
+        <button class="secondary" onclick="showScreen('searchScreen')">⬅️ رجوع</button>
+      </div>
+      <div id="passMsg" style="margin-top:8px;color:var(--muted)"></div>
+    </div>
+
+    <!-- RECORD SEARCH SCREEN -->
+    <div id="recordSearchScreen" class="card hidden">
+      <h3>📖 بحث بالسجل</h3>
+      <label>اكتب رقم السجل</label>
+      <input id="recordSearch" type="text">
+      <div style="display:flex;gap:8px;margin-top:8px">
+        <button onclick="searchByRecord()">بحث</button>
+        <button class="secondary" onclick="showScreen('searchScreen')">⬅️ رجوع</button>
+      </div>
+      <div id="recordResult" style="margin-top:10px"></div>
+    </div>
+
+    <!-- IMPORT SCREEN -->
+    <div id="importScreen" class="card hidden">
+      <h3>⬇️ استيراد من CSV</h3>
+      <div style="color:var(--muted);font-size:13px">الأعمدة: رقم,السجل,الكود,ماركة,نوع,نوع وقود,آخر عداد,تاريخ</div>
+      <input id="csvFileInput" type="file" accept=".csv" style="margin-top:8px"/>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button onclick="importFromFile()">استيراد</button>
+        <button class="secondary" onclick="showScreen('searchScreen')">⬅️ رجوع</button>
+      </div>
+      <div id="importMsg" style="margin-top:8px;color:var(--muted)"></div>
+    </div>
+
+  </div> <!-- end mainApp -->
+
+  <footer>نسخة محلية — يتم حفظ البيانات داخل المتصفح (يمكن استيراد/تصدير CSV)</footer>
+</div>
+
+<script>
+/* ---------------- Storage keys & defaults ---------------- */
+const STORAGE_USER = 'app_user';
+const STORAGE_PASS = 'app_pass';
+const STORAGE_CARS = 'app_cars_backup';
+
+if(!localStorage.getItem(STORAGE_USER)) localStorage.setItem(STORAGE_USER, 'ayman');
+if(!localStorage.getItem(STORAGE_PASS)) localStorage.setItem(STORAGE_PASS, '4989');
+
+/* in-memory list */
+let cars = [];
+let selectedCar = null;
+let editingNumber = null; // when editing via add screen
+
+/* ---------------- Backup helpers ---------------- */
+function saveBackup(){ localStorage.setItem(STORAGE_CARS, JSON.stringify(cars)); }
+function loadBackup(){ const v = localStorage.getItem(STORAGE_CARS); if(v){ try{ cars = JSON.parse(v); }catch(e){ cars = []; } } }
+
+/* ---------------- UI helpers ---------------- */
+function showScreen(id){
+  const ids = ['searchScreen','addCarScreen','deleteCarScreen','passwordScreen','usernameScreen','recordSearchScreen','importScreen'];
+  ids.forEach(sid => { const el=document.getElementById(sid); if(el) el.classList.add('hidden'); });
+  if(id && document.getElementById(id)) document.getElementById(id).classList.remove('hidden');
+  else document.getElementById('searchScreen').classList.remove('hidden');
+}
+function toggleDropdown(){ document.getElementById('mainDropdown').classList.toggle('open'); }
+document.addEventListener('click', function(e){
+  if(e.target.closest('.menu-item')){
+    const btn = e.target.closest('.menu-item');
+    const target = btn.getAttribute('data-target');
+    if(target) showScreen(target);
+    document.getElementById('mainDropdown').classList.remove('open');
+  } else {
+    if(!e.target.closest('#mainDropdown')) document.getElementById('mainDropdown').classList.remove('open');
+  }
+});
+
+/* ---------------- Login / logout ---------------- */
+function attemptLogin(){
+  const u = document.getElementById('usernameInput').value.trim();
+  const p = document.getElementById('passwordInput').value.trim();
+  const savedU = localStorage.getItem(STORAGE_USER);
+  const savedP = localStorage.getItem(STORAGE_PASS);
+  const msg = document.getElementById('loginMsg');
+  msg.style.display = 'none';
+  if(u === savedU && p === savedP){
+    document.getElementById('loginScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    // set background bus (requires bus-bg.jpg in same folder)
+    document.getElementById('mainApp').style.backgroundImage = "url('bus-bg.jpg')";
+    document.getElementById('currentUser').innerText = u;
+    renderCarsList();
+    showScreen('searchScreen');
+  } else {
+    msg.style.display = 'block';
+    msg.innerText = '❌ اسم المستخدم أو كلمة المرور غير صحيحة';
+  }
+}
+function cancelLogin(){
+  document.getElementById('usernameInput').value = '';
+  document.getElementById('passwordInput').value = '';
+  document.getElementById('loginMsg').style.display = 'none';
+}
+function logout(){
+  document.getElementById('mainApp').classList.add('hidden');
+  document.getElementById('loginScreen').classList.remove('hidden');
+  // remove bus background to make login clearly different
+  document.getElementById('mainApp').style.backgroundImage = '';
+  selectedCar = null;
+}
+
+/* ---------------- Cars list rendering ---------------- */
+function renderCarsList(){
+  const container = document.getElementById('carsList');
+  container.innerHTML = '';
+  if(cars.length === 0){
+    container.innerHTML = '<div style="padding:8px;color:#777;font-style:italic">لا توجد سيارات مسجلة</div>';
+    return;
+  }
+  cars.forEach(c => {
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.innerHTML = `<div><b>${c.number}</b><div style="font-size:12px;color:#666">${c.brand||''} ${c.model? '('+c.model+')':''}</div></div>`;
+    const actions = document.createElement('div');
+    const sel = document.createElement('button');
+    sel.className = 'menuBtn';
+    sel.style.padding = '6px';
+    sel.style.fontSize = '13px';
+    sel.innerText = 'اختيار';
+    sel.onclick = () => { document.getElementById('searchNumber').value = c.number; searchCar(); };
+    actions.appendChild(sel);
+    row.appendChild(actions);
+    container.appendChild(row);
+  });
+}
+
+/* ---------------- Add / Edit car ---------------- */
+function addCar(){
+  const number = document.getElementById('add_number').value.trim();
+  if(!number){ alert('⚠️ اكتب رقم السيارة'); return; }
+  const car = {
+    number,
+    record: document.getElementById('add_record').value.trim(),
+    code: document.getElementById('add_code').value.trim(),
+    brand: document.getElementById('add_brand').value.trim(),
+    model: document.getElementById('add_model').value.trim(),
+    fuelType: document.getElementById('add_fuelType').value,
+    lastOdometer: document.getElementById('add_odometer').value ? parseInt(document.getElementById('add_odometer').value) : '',
+    lastDate: document.getElementById('add_odometer_date').value || ''
+  };
+  const idx = cars.findIndex(c => c.number === number);
+  if(idx > -1){
+    cars[idx] = car;
+  } else {
+    cars.push(car);
+  }
+  saveBackup();
+  renderCarsList();
+  alert('✅ تم حفظ العربية');
+  clearAddForm();
+  showScreen('searchScreen');
+}
+function clearAddForm(){
+  ['add_number','add_record','add_code','add_brand','add_model','add_fuelType','add_odometer','add_odometer_date'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value='';});
+}
+
+/* ---------------- Search logic ---------------- */
+function normalize(s){ return String(s||'').replace(/\s+/g,'').toLowerCase(); }
+function onlyDigits(s){ return /^\d+$/.test(s); }
+
+function searchCar(){
+  const q = document.getElementById('searchNumber').value.trim();
+  if(!q){ alert('اكتب رقم أو جزء منه للبحث'); return; }
+  // decide digits-only search
+  const isDigits = onlyDigits(q);
+  let found = null;
+  if(isDigits){
+    const qd = q.replace(/\s+/g,'');
+    found = cars.find(c => (String(c.number||'').replace(/\s+/g,'').includes(qd)));
+  } else {
+    const ql = q.toLowerCase();
+    found = cars.find(c => (c.number||'').toLowerCase().includes(ql));
+  }
+  if(!found){ selectedCar = null; document.getElementById('carInfo').innerHTML = '🚫 السيارة غير موجودة!'; document.getElementById('lastOdometer').value=''; document.getElementById('lastDate').value=''; return; }
+  selectedCar = found;
+  renderSelectedCar();
+}
+function renderSelectedCar(){
+  if(!selectedCar) return;
+  document.getElementById('carInfo').innerHTML = `<b>رقم:</b> ${selectedCar.number} <button style="margin-left:8px" onclick="showCarDetails()">❗</button>
+    <div style="margin-top:6px"><b>ماركة:</b> ${selectedCar.brand||'-'} — <b>نوع:</b> ${selectedCar.model||'-'} — <b>وقود:</b> ${selectedCar.fuelType||'-'}</div>`;
+  document.getElementById('lastOdometer').value = selectedCar.lastOdometer !== undefined ? selectedCar.lastOdometer : '';
+  document.getElementById('lastDate').value = selectedCar.lastDate || '';
+  // clear inputs
+  document.getElementById('currentOdometer').value = '';
+  document.getElementById('currentDate').value = '';
+  document.getElementById('fuelAmount').value = '';
+  document.getElementById('distanceField').value = '';
+  document.getElementById('percentageField').value = '';
+}
+
+/* show details button */
+function showCarDetails(){
+  if(!selectedCar) return;
+  alert(`تفاصيل السيارة:\n\nرقم: ${selectedCar.number}\nالسجل: ${selectedCar.record||'-'}\nالكود: ${selectedCar.code||'-'}\nالماركة: ${selectedCar.brand||'-'}\nالنوع: ${selectedCar.model||'-'}\nنوع الوقود: ${selectedCar.fuelType||'-'}\nآخر عداد: ${selectedCar.lastOdometer||'-'}\nتاريخ: ${selectedCar.lastDate||'-'}`);
+}
+
+/* ---------------- Auto compute distance & percentage ---------------- */
+document.getElementById('currentOdometer').addEventListener('input', computeAuto);
+document.getElementById('fuelAmount').addEventListener('input', computeAuto);
+
+function computeAuto(){
+  const curVal = document.getElementById('currentOdometer').value;
+  const fuelVal = document.getElementById('fuelAmount').value;
+  if(!selectedCar || !curVal) { document.getElementById('distanceField').value=''; document.getElementById('percentageField').value=''; return; }
+  const cur = parseFloat(curVal);
+  const last = selectedCar && selectedCar.lastOdometer ? parseFloat(selectedCar.lastOdometer) : NaN;
+  if(isNaN(cur) || isNaN(last)) { document.getElementById('distanceField').value=''; document.getElementById('percentageField').value=''; return; }
+  const distance = cur - last;
+  if(isNaN(distance) || distance < 0){ document.getElementById('distanceField').value=''; document.getElementById('percentageField').value=''; return; }
+  document.getElementById('distanceField').value = distance;
+  const fuel = parseFloat(fuelVal);
+  if(!isNaN(fuel) && fuel > 0 && distance > 0){
+    const perc = Math.round((fuel / distance) * 100);
+    document.getElementById('percentageField').value = perc;
+  } else {
+    document.getElementById('percentageField').value = '';
+  }
+}
+
+/* ---------------- Save trip ---------------- */
+function saveTrip(){
+  if(!selectedCar){ alert('ابحث عن سيارة أولا'); return; }
+  const idx = cars.findIndex(c => c.number === selectedCar.number);
+  if(idx === -1){ alert('السيارة غير موجودة'); return; }
+  const cur = parseInt(document.getElementById('currentOdometer').value);
+  const curDate = document.getElementById('currentDate').value;
+  const fuel = document.getElementById('fuelAmount').value ? parseFloat(document.getElementById('fuelAmount').value) : '';
+  if(isNaN(cur) || !curDate){ alert('من فضلك املأ العداد الجديد والتاريخ'); return; }
+  const last = cars[idx].lastOdometer ? parseInt(cars[idx].lastOdometer) : NaN;
+  const distance = (!isNaN(last)) ? (cur - last) : NaN;
+  if(!isNaN(distance) && distance < 0){ alert('العداد الجديد أصغر من العداد السابق'); return; }
+  const percentage = (!isNaN(distance) && fuel !== '' && distance>0) ? Math.round((fuel / distance) * 100) : '';
+  // update
+  cars[idx].lastTrip = {distance: isNaN(distance)?'':distance, fuel, percentage, date: curDate};
+  cars[idx].lastOdometer = cur;
+  cars[idx].lastDate = curDate;
+  saveBackup(); renderCarsList(); renderSelectedCar();
+  document.getElementById('resultBox').classList.remove('hidden');
+  document.getElementById('resultBox').innerHTML = `✅ تم الحفظ<br>المسافة: <b>${!isNaN(distance)?distance:'-'}</b> كم<br>النسبة: <b>${percentage!==''?percentage+'%':'-'}</b>`;
+}
+
+/* ---------------- Export / Import ---------------- */
+function buildCSV(arr){
+  const header = ['رقم السيارة','السجل','الكود','الماركة','النوع','نوع الوقود','آخر عداد','تاريخ آخر عداد'];
+  const lines = [header.join(',')];
+  arr.forEach(c=>{
+    const row = [
+      csvEscape(c.number||''),
+      csvEscape(c.record||''),
+      csvEscape(c.code||''),
+      csvEscape(c.brand||''),
+      csvEscape(c.model||''),
+      csvEscape(c.fuelType||''),
+      csvEscape(c.lastOdometer!==undefined?String(c.lastOdometer):''),
+      csvEscape(c.lastDate||'')
+    ];
+    lines.push(row.join(','));
+  });
+  return lines.join('\n');
+}
+function csvEscape(s){ if(s==null) return ''; s = String(s); if(s.includes(',')||s.includes('\n')||s.includes('"')) return `"${s.replace(/"/g,'""')}"`; return s; }
+
+function downloadCSV(filename,content){
+  const blob = new Blob([content], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = filename || 'cars.csv';
+  document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+}
+
+function exportAll(){
+  if(cars.length===0){ alert('لا توجد بيانات للتصدير'); return; }
+  const csv = buildCSV(cars);
+  downloadCSV('cars_all.csv', csv);
+}
+function exportCurrentIfExists(){
+  if(!selectedCar){ alert('اختر سيارة أولاً'); return; }
+  const csv = buildCSV([selectedCar]);
+  downloadCSV((selectedCar.number||'car') + '.csv', csv);
+}
+
+function importFromFile(){
+  const input = document.getElementById('csvFileInput');
+  if(!input.files || input.files.length===0){ alert('اختر ملف CSV'); return; }
+  const reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      const text = e.target.result.replace(/\r/g,'');
+      const rows = text.split('\n').filter(r => r.trim()!=='');
+      if(rows.length <= 1){ alert('الملف فارغ أو لا يحتوي على بيانات'); return; }
+      let added=0, updated=0;
+      for(let i=1;i<rows.length;i++){
+        const cols = parseCSVRow(rows[i]);
+        const number = cols[0]||'';
+        if(!number) continue;
+        const record = cols[1]||''; const code = cols[2]||''; const brand = cols[3]||''; const model = cols[4]||''; const fuelType = cols[5]||''; const lastOdometer = cols[6]?parseInt(cols[6]):''; const lastDate = cols[7]||'';
+        const idx = cars.findIndex(c => c.number === number);
+        const car = {number, record, code, brand, model, fuelType, lastOdometer, lastDate};
+        if(idx === -1){ cars.push(car); added++; } else { cars[idx] = {...cars[idx], ...car}; updated++; }
+      }
+      saveBackup(); renderCarsList();
+      alert(`✅ تم الاستيراد — إضافة: ${added}، تعديل: ${updated}`);
+      document.getElementById('csvFileInput').value = '';
+      showScreen('searchScreen');
+    }catch(err){
+      alert('فشل قراءة الملف. تأكد من تنسيق CSV.');
+    }
+  };
+  reader.readAsText(input.files[0], 'utf-8');
+}
+// simple CSV row parser (handles quoted fields)
+function parseCSVRow(line){
+  const cols=[]; let cur=''; let inQuotes=false;
+  for(let i=0;i<line.length;i++){
+    const ch=line[i];
+    if(ch === '"' ){
+      if(inQuotes && line[i+1]==='"'){ cur+='"'; i++; continue; }
+      inQuotes = !inQuotes; continue;
+    }
+    if(ch===',' && !inQuotes){ cols.push(cur); cur=''; continue; }
+    cur += ch;
+  }
+  cols.push(cur);
+  return cols.map(c=>c.trim());
+}
+
+/* ---------------- Delete / Edit from delete screen ---------------- */
+function searchCarToDelete(){
+  const q = document.getElementById('deleteSearchNumber').value.trim();
+  const resultDiv = document.getElementById('deleteCarResult');
+  if(!q){ alert('اكتب رقم السيارة'); return; }
+  const qnorm = q.toLowerCase();
+  const matches = cars.filter(c => (c.number||'').toLowerCase().includes(qnorm));
+  if(matches.length === 0){ resultDiv.innerHTML = '<p style="color:red">❌ لا توجد نتائج</p>'; return; }
+  resultDiv.innerHTML = matches.map(c => `
+    <div style="border-bottom:1px solid #eee;padding:8px 0">
+      <p><b>الرقم:</b> ${c.number}</p>
+      <p><b>السجل:</b> ${c.record||'-'}</p>
+      <p style="margin-top:6px">
+        <button style="background:#dc3545;color:#fff;border:none;padding:6px;border-radius:6px;margin-right:8px" onclick="deleteCar('${c.number}')">🗑️ حذف</button>
+        <button style="background:#fd7e14;color:#fff;border:none;padding:6px;border-radius:6px" onclick="editCar('${c.number}')">✏️ تعديل</button>
+      </p>
+    </div>
+  `).join('');
+}
+function clearDeleteSearch(){ document.getElementById('deleteSearchNumber').value=''; document.getElementById('deleteCarResult').innerHTML='لم يتم اختيار سيارة بعد'; }
+function deleteCar(number){
+  if(!confirm(`هل أنت متأكد أنك تريد حذف السيارة ${number}؟`)) return;
+  cars = cars.filter(c => c.number !== number);
+  saveBackup(); renderCarsList();
+  alert('✅ تم الحذف');
+  document.getElementById('deleteCarResult').innerHTML = 'تم الحذف';
+}
+
+/* open add screen prefilled for editing */
+function editCar(number){
+  const car = cars.find(c => c.number === number);
+  if(!car){ alert('السيارة غير موجودة'); return; }
+  document.getElementById('add_number').value = car.number;
+  document.getElementById('add_record').value = car.record || '';
+  document.getElementById('add_code').value = car.code || '';
+  document.getElementById('add_brand').value = car.brand || '';
+  document.getElementById('add_model').value = car.model || '';
+  document.getElementById('add_fuelType').value = car.fuelType || '';
+  document.getElementById('add_odometer').value = car.lastOdometer !== undefined ? car.lastOdometer : '';
+  document.getElementById('add_odometer_date').value = car.lastDate || '';
+  editingNumber = car.number;
+  showScreen('addCarScreen');
+}
+
+/* ---------------- Change username / password ---------------- */
+function changeUsername(){
+  const nu = document.getElementById('newUsername').value.trim();
+  if(!nu){ alert('اكتب اسم مستخدم جديد'); return; }
+  localStorage.setItem(STORAGE_USER, nu);
+  document.getElementById('currentUser').innerText = nu;
+  alert('✅ تم تغيير اسم المستخدم');
+  showScreen('searchScreen');
+}
+function changePassword(){
+  const oldP = document.getElementById('oldPass').value.trim();
+  const new1 = document.getElementById('newPass1').value.trim();
+  const new2 = document.getElementById('newPass2').value.trim();
+  if(oldP !== localStorage.getItem(STORAGE_PASS)){ alert('كلمة المرور القديمة غير صحيحة'); return; }
+  if(!new1 || !new2){ alert('اكتب كلمة المرور الجديدة مرتين'); return; }
+  if(new1 !== new2){ alert('كلمات المرور غير متطابقة'); return; }
+  localStorage.setItem(STORAGE_PASS, new1);
+  alert('✅ تم تغيير كلمة المرور');
+  showScreen('searchScreen');
+}
+
+/* ---------------- Search by record ---------------- */
+function searchByRecord(){
+  const r = document.getElementById('recordSearch').value.trim();
+  const target = document.getElementById('recordResult');
+  if(!r){ alert('اكتب رقم السجل'); return; }
+  const found = cars.filter(c => String(c.record || '').includes(r));
+  if(found.length === 0){ target.innerHTML = '🚫 لا توجد نتائج'; return; }
+  let html = '<table width="100%" border="1" style="border-collapse:collapse"><tr><th>رقم</th><th>سجل</th><th>ماركة</th><th>نوع</th><th>عداد</th><th>تاريخ</th></tr>';
+  found.forEach(c => {
+    html += `<tr><td>${c.number}</td><td>${c.record}</td><td>${c.brand||''}</td><td>${c.model||''}</td><td>${c.lastOdometer||''}</td><td>${c.lastDate||''}</td></tr>`;
+  });
+  html += '</table>';
+  target.innerHTML = html;
+}
+
+/* ---------------- Init ---------------- */
+window.onload = function(){
+  loadBackup();
+  renderCarsList();
+  // show login initially
+  document.getElementById('loginScreen').classList.remove('hidden');
+  document.getElementById('mainApp').classList.add('hidden');
+  // don't set main background yet - set after successful login
+};
+</script>
+</body>
+</html>
